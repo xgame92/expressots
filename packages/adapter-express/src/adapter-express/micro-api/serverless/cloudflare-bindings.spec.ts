@@ -104,6 +104,16 @@ describe("cloudflareBindings", () => {
     );
   });
 
+  it.each(["toString", "constructor"])(
+    "does not resolve the inherited %s property as a binding",
+    (bindingName) => {
+      const token = cloudflareBindings().kv(bindingName);
+      const services = createCloudflareServices({});
+
+      expect(() => services.get(token)).toThrow(CloudflareBindingNotFoundError);
+    },
+  );
+
   it("throws a named error when binding providers were not configured", () => {
     const services = createUnconfiguredCloudflareServices();
 

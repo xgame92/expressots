@@ -95,10 +95,11 @@ provider whose name is absent from the current environment throws
 `CloudflareBindingNotFoundError`.
 
 Pass an explicit environment type to get exact binding-name checks. Binding
-kinds are inferred structurally from the methods exposed by Cloudflare's KV,
-D1, R2, and Queue interfaces, so structurally ambiguous values are excluded.
-Without an explicit environment type, binding names intentionally fall back to
-`string` for dynamically configured applications.
+kinds are inferred with a structural heuristic based on methods exposed by
+Cloudflare's KV, D1, R2, and Queue interfaces. Structural lookalikes, ambiguous
+values, or future changes to those interfaces can affect classification. An
+explicit `<Env>` provides exact key checking; without it, binding names
+intentionally fall back to `string` for dynamically configured applications.
 
 ## Documentation
 

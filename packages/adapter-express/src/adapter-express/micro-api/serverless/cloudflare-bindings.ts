@@ -138,6 +138,9 @@ export function createCloudflareServices<TEnv extends object>(env: TEnv): Cloudf
   return {
     get<T>(token: CloudflareBindingToken<T>): T {
       assertBindingToken(token);
+      if (!Object.prototype.hasOwnProperty.call(runtimeEnv, token.bindingName)) {
+        throw new CloudflareBindingNotFoundError(token.bindingName);
+      }
       const value = runtimeEnv[token.bindingName];
       if (value === undefined) {
         throw new CloudflareBindingNotFoundError(token.bindingName);

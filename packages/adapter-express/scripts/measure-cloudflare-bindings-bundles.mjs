@@ -251,6 +251,11 @@ try {
     ]),
   );
   const failures = [];
+  for (const [name, measurement] of Object.entries(measurements)) {
+    if (measurement.appExpressPresent) {
+      failures.push(`${name} unexpectedly includes AppExpress`);
+    }
+  }
   if (base.gzipBytes > maxBaseGzipBytes) failures.push("base gzip exceeds 205 KiB");
   for (const name of ["enabled", "allBindings"]) {
     if (deltas[name].gzip.bytes > maxAddedGzipBytes) {

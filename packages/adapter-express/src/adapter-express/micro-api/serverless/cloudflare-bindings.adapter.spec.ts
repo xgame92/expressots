@@ -4,7 +4,11 @@ import {
   type CloudflareContext,
   type CloudflareRequest,
 } from "./cloudflare.adapter";
-import { cloudflareBindings, CloudflareBindingsNotConfiguredError } from "./cloudflare-bindings";
+import {
+  CloudflareBindingNotFoundError,
+  cloudflareBindings,
+  CloudflareBindingsNotConfiguredError,
+} from "./cloudflare-bindings";
 
 interface TestKv {
   getWithMetadata(key: string): Promise<{ value: string | null }>;
@@ -107,5 +111,39 @@ describe("cloudflareAdapter binding services", () => {
 
     expect(await first.json()).toEqual({ value: "first" });
     expect(await second.json()).toEqual({ value: "second" });
+  });
+
+  it("does not expose inherited environment properties as bindings", async () => {
+    const dynamicBindings = cloudflareBindings();
+    const InheritedToString = dynamicBindings.kv("toString");
+    const app = express();
+    app.get("/prototype", (request, response, next) => {
+      try {
+        const req = request as CloudflareRequest<Record<string, unknown>>;
+        req.services.get(InheritedToString);
+        response.status(200).end();
+      } catch (error) {
+        next(error);
+      }
+    });
+    app.use(((error, _req, res, next) => {
+      if (error instanceof CloudflareBindingNotFoundError) {
+        res.status(503).json({ code: error.code });
+        return;
+      }
+      next(error);
+    }) satisfies express.ErrorRequestHandler);
+
+    const worker = cloudflareAdapter(app, { bindings: dynamicBindings });
+    const response = await worker.fetch(
+      new Request("https://worker.example/prototype"),
+      {},
+      context,
+    );
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({
+      code: "EXPRESSOTS_CLOUDFLARE_BINDING_NOT_FOUND",
+    });
   });
 });
