@@ -32,3 +32,25 @@ jobs:
 
       - name: Lint
         run: pnpm lint
+
+  cloudflare-bindings-bundle:
+    name: Cloudflare bindings bundle gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packed packages
+        run: pnpm --filter @expressots/adapter-express... build
+
+      - name: Measure packed Cloudflare bundles
+        run: pnpm --filter @expressots/adapter-express test:cloudflare:bundle

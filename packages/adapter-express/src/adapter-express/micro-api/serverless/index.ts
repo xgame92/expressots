@@ -23,6 +23,18 @@ export {
   cloudflareAdapter,
   type CloudflareEnv,
   type CloudflareContext,
+  type CloudflareRequest,
+  type CloudflareRequestContext,
   type CloudflareHandler,
   type CloudflareAdapterConfig,
 } from "./cloudflare.adapter.js";
+
+export {
+  cloudflareBindings,
+  CloudflareBindingNotFoundError,
+  CloudflareBindingsNotConfiguredError,
+  type CloudflareBindingKind,
+  type CloudflareBindingToken,
+  type CloudflareBindings,
+  type CloudflareServices,
+} from "./cloudflare-bindings.js";

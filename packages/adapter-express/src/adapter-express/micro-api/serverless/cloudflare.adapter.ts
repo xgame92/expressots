@@ -6,7 +6,14 @@
  * or uses a fetch-based approach.
  */
 
+import type express from "express";
 import qs from "qs";
+import { CLOUDFLARE_SERVICES_FACTORY } from "./cloudflare-bindings.contract.js";
+import {
+  createUnconfiguredCloudflareServices,
+  type CloudflareBindings,
+  type CloudflareServices,
+} from "./cloudflare-bindings.js";
 import {
   DEFAULT_MAX_BODY_BYTES,
   isTextualContentType,
@@ -89,13 +96,23 @@ export interface CloudflareContext {
   passThroughOnException(): void;
 }
 
+export interface CloudflareRequestContext<TEnv extends object> {
+  env: TEnv;
+  ctx: CloudflareContext;
+}
+
+export interface CloudflareRequest<TEnv extends object = CloudflareEnv> extends express.Request {
+  cloudflare: CloudflareRequestContext<TEnv>;
+  services: CloudflareServices;
+}
+
 /**
  * Cloudflare Workers Handler Type
  */
-export type CloudflareHandler = {
+export type CloudflareHandler<TEnv extends object = CloudflareEnv> = {
   fetch(
     request: globalThis.Request,
-    env: CloudflareEnv,
+    env: TEnv,
     ctx: CloudflareContext,
   ): Promise<globalThis.Response>;
 };
@@ -103,7 +120,7 @@ export type CloudflareHandler = {
 /**
  * Cloudflare Adapter Configuration
  */
-export interface CloudflareAdapterConfig {
+export interface CloudflareAdapterConfig<TEnv extends object = CloudflareEnv> {
   /** Enable debug logging */
   debug?: boolean;
   /**
@@ -113,6 +130,7 @@ export interface CloudflareAdapterConfig {
    * 128 MB of memory and Cloudflare accepts bodies up to 100 MB).
    */
   maxBodySize?: number;
+  bindings?: CloudflareBindings<TEnv>;
 }
 
 /**
@@ -158,10 +176,10 @@ export interface CloudflareUploadedFile {
  * compatibility_flags = ["nodejs_compat"]
  * ```
  */
-export function cloudflareAdapter(
+export function cloudflareAdapter<TEnv extends object = CloudflareEnv>(
   app: ServerlessApp,
-  config?: CloudflareAdapterConfig,
-): CloudflareHandler {
+  config?: CloudflareAdapterConfig<TEnv>,
+): CloudflareHandler<TEnv> {
   const expressApp = resolveExpressApp(app);
 
   // Runs at module scope in a Worker, so an unusable middleware stack fails
@@ -170,11 +188,12 @@ export function cloudflareAdapter(
 
   const debug = config?.debug ?? false;
   const maxBodySize = config?.maxBodySize ?? DEFAULT_MAX_BODY_BYTES;
+  const servicesFactory = config?.bindings?.[CLOUDFLARE_SERVICES_FACTORY];
 
   return {
     async fetch(
       request: globalThis.Request,
-      env: CloudflareEnv,
+      env: TEnv,
       ctx: CloudflareContext,
     ): Promise<globalThis.Response> {
       const url = new URL(request.url);
@@ -275,6 +294,7 @@ export function cloudflareAdapter(
           body,
           get: (name: string) => headers[name.toLowerCase()],
           cloudflare: { env, ctx },
+          services: servicesFactory ? servicesFactory(env) : createUnconfiguredCloudflareServices(),
         };
 
         // Create mock Express-compatible response object.

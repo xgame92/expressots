@@ -42,9 +42,7 @@ import { AppContainer, CreateModule, bootstrap } from "@expressots/core";
 import { AppController } from "./app.controller";
 
 export class App extends AppExpress {
-  private readonly container: AppContainer = this.configContainer([
-    CreateModule([AppController]),
-  ]);
+  private readonly container: AppContainer = this.configContainer([CreateModule([AppController])]);
 
   async configureServices(): Promise<void> {
     // register middleware, interceptors, error handlers
@@ -64,7 +62,43 @@ void bootstrap(App); // starts on process.env.PORT or 3000
 
 ## Preview modules
 
-The `micro-api` module (gateway, service-mesh, serverless, queue) is preview quality: its APIs may change and it is not yet covered by the test suite. Use it for experimentation, not production-critical paths.
+The `micro-api` module (gateway, service-mesh, serverless, queue) is preview quality: its APIs may change. Use it for experimentation, not production-critical paths.
+
+## Cloudflare binding providers
+
+Cloudflare binding providers are opt-in and available through the `micro-api` module:
+
+```ts
+interface Env {
+  SETTINGS: KVNamespace;
+}
+
+const bindings = cloudflareBindings<Env>();
+const Settings = bindings.kv("SETTINGS");
+
+const app = micro<CloudflareRequest<Env>>();
+app.get("/settings", async (req) => ({
+  theme: await req.services.get(Settings).get("theme"),
+}));
+
+export default cloudflareAdapter(app, { bindings });
+```
+
+Use `bindings.d1` for D1 databases, `bindings.r2` for R2 buckets, and
+`bindings.queue` for Queue producers. Each request receives a services facade
+that resolves values directly from that request's Cloudflare environment.
+There is no shared or request-local ExpressoTS container involved.
+
+The adapter always installs `req.services`. If `bindings` is omitted, calling
+`services.get()` throws `CloudflareBindingsNotConfiguredError`; a configured
+provider whose name is absent from the current environment throws
+`CloudflareBindingNotFoundError`.
+
+Pass an explicit environment type to get exact binding-name checks. Binding
+kinds are inferred structurally from the methods exposed by Cloudflare's KV,
+D1, R2, and Queue interfaces, so structurally ambiguous values are excluded.
+Without an explicit environment type, binding names intentionally fall back to
+`string` for dynamically configured applications.
 
 ## Documentation
 
@@ -84,4 +118,3 @@ Welcome to the ExpressoTS community. See the [Contributing Guide](https://github
 ## License
 
 MIT. See [LICENSE](./LICENSE.md).
-
